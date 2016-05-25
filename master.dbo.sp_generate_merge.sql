@@ -575,8 +575,8 @@ END
 --When NOT matched by target, perform an INSERT------------------------------------
 SET @output += @b + 'WHEN NOT MATCHED BY TARGET '
 SET @output += @b + 'THEN';
-SET @output += @b + '    INSERT(' + @Column_List + ')'
-SET @output += @b + '    VALUES(' + REPLACE(@Column_List, '[', '[Source].[') + ')'
+SET @output += @b + '    INSERT (' + @Column_List + ')'
+SET @output += @b + '    VALUES (' + REPLACE(@Column_List, '[', '[Source].[') + ')'
 
 
 --When NOT matched by source, DELETE the row
@@ -592,16 +592,16 @@ SET @output += @b + @batch_separator
 IF @include_rowsaffected = 1
 BEGIN
  SET @output += @b + 'DECLARE @mergeError int'
- SET @output += @b + ' , @mergeCount int'
+ SET @output += @b + '       ,@mergeCount int'
  SET @output += @b + 'SELECT @mergeError = @@ERROR, @mergeCount = @@ROWCOUNT'
  SET @output += @b + 'IF @mergeError != 0'
- SET @output += @b + ' BEGIN'
- SET @output += @b + ' PRINT ''ERROR OCCURRED IN MERGE FOR ' + @Target_Table_For_Output + '. Rows affected: '' + CAST(@mergeCount AS VARCHAR(100)); -- SQL should always return zero rows affected';
- SET @output += @b + ' END'
+ SET @output += @b + '    BEGIN'
+ SET @output += @b + '        PRINT ''ERROR OCCURRED IN MERGE FOR ' + @Target_Table_For_Output + '. Rows affected: '' + CAST(@mergeCount AS VARCHAR(100)); -- SQL should always return zero rows affected';
+ SET @output += @b + '    END'
  SET @output += @b + 'ELSE'
- SET @output += @b + ' BEGIN'
- SET @output += @b + ' PRINT ''' + @Target_Table_For_Output + ' rows affected by MERGE: '' + CAST(@mergeCount AS VARCHAR(100));';
- SET @output += @b + ' END'
+ SET @output += @b + '    BEGIN'
+ SET @output += @b + '        PRINT ''' + @Target_Table_For_Output + ' rows affected by MERGE: '' + CAST(@mergeCount AS VARCHAR(100));';
+ SET @output += @b + '    END'
  SET @output += @b + @batch_separator
  SET @output += @b + @b
 END
