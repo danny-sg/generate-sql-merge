@@ -35,7 +35,7 @@ CREATE PROC sp_generate_merge
  @include_use_db bit = 1, -- When 1, includes a USE [DatabaseName] statement at the beginning of the generated batch
  @results_to_text bit = 0, -- When 1, outputs results to grid/messages window. When 0, outputs MERGE statement in an XML fragment.
  @include_rowsaffected bit = 1, -- When 1, a section is added to the end of the batch which outputs rows affected by the MERGE
- @nologo bit = 0, -- When 1, the "About" comment is suppressed from output
+ @nologo bit = 1, -- When 1, the "About" comment is suppressed from output
  @batch_separator VARCHAR(50) = 'GO' -- Batch separator to use
 )
 AS
@@ -354,19 +354,19 @@ WHILE @Column_ID IS NOT NULL
  'COALESCE('''''''' + RTRIM(CONVERT(char,' + @Column_Name + ',127))+'''''''',''NULL'')'
  WHEN @Data_Type IN ('uniqueidentifier') 
  THEN 
- 'COALESCE('''''''' + REPLACE(CONVERT(char(36),RTRIM(' + @Column_Name + ')),'''''''','''''''''''')+'''''''',''NULL'')'
+ 'COALESCE('''''''' + REPLACE(CONVERT(char(36),RTRIM(' + @Column_Name + ')),'''''''','''''''''''')+'''''''', ''NULL'')'
  WHEN @Data_Type IN ('text') 
  THEN 
- 'COALESCE('''''''' + REPLACE(CONVERT(varchar(max),' + @Column_Name + '),'''''''','''''''''''')+'''''''',''NULL'')' 
+ 'COALESCE('''''''' + REPLACE(CONVERT(varchar(max),' + @Column_Name + '),'''''''','''''''''''')+'''''''', ''NULL'')' 
  WHEN @Data_Type IN ('ntext') 
  THEN 
- 'COALESCE('''''''' + REPLACE(CONVERT(nvarchar(max),' + @Column_Name + '),'''''''','''''''''''')+'''''''',''NULL'')' 
+ 'COALESCE('''''''' + REPLACE(CONVERT(nvarchar(max),' + @Column_Name + '),'''''''','''''''''''')+'''''''', ''NULL'')' 
  WHEN @Data_Type IN ('xml') 
  THEN 
- 'COALESCE('''''''' + REPLACE(CONVERT(nvarchar(max),' + @Column_Name + '),'''''''','''''''''''')+'''''''',''NULL'')' 
+ 'COALESCE('''''''' + REPLACE(CONVERT(nvarchar(max),' + @Column_Name + '),'''''''','''''''''''')+'''''''', ''NULL'')' 
  WHEN @Data_Type IN ('binary','varbinary') 
  THEN 
- 'COALESCE(RTRIM(CONVERT(char,' + 'CONVERT(int,' + @Column_Name + '))),''NULL'')' 
+ 'COALESCE(RTRIM(CONVERT(char,' + 'CONVERT(int,' + @Column_Name + '))), ''NULL'')' 
  WHEN @Data_Type IN ('timestamp','rowversion') 
  THEN 
  CASE 
@@ -384,10 +384,10 @@ WHILE @Column_ID IS NOT NULL
   'COALESCE(''hierarchyid::Parse(''+'''''''' + LTRIM(RTRIM(' + 'CONVERT(char, ' + @Column_Name + ')' + '))+''''''''+'')'',''NULL'')' 
  ELSE 
  'COALESCE(LTRIM(RTRIM(' + 'CONVERT(char, ' + @Column_Name + ')' + ')),''NULL'')' 
- END + '+' + ''',''' + ' + '
+ END + '+' + ''', ''' + ' + '
  
  --Generating the column list for the MERGE statement
- SET @Column_List = @Column_List + @Column_Name + ',' 
+ SET @Column_List = @Column_List + @Column_Name + ', ' 
  
  --Don't update Primary Key or Identity columns
  IF NOT EXISTS(
@@ -403,13 +403,13 @@ WHILE @Column_ID IS NOT NULL
  AND c.COLUMN_NAME = @Column_Name_Unquoted 
  )
  BEGIN
- SET @Column_List_For_Update = @Column_List_For_Update + @Column_Name + ' = Source.' + @Column_Name + ', 
+ SET @Column_List_For_Update = @Column_List_For_Update + @Column_Name + ' = [Source].' + @Column_Name + ', 
   ' 
  SET @Column_List_For_Check = @Column_List_For_Check +
  CASE @Data_Type 
- WHEN 'text' THEN CHAR(10) + CHAR(9) + 'NULLIF(CAST(Source.' + @Column_Name + ' AS VARCHAR(MAX)), CAST(Target.' + @Column_Name + ' AS VARCHAR(MAX))) IS NOT NULL OR NULLIF(CAST(Target.' + @Column_Name + ' AS VARCHAR(MAX)), CAST(Source.' + @Column_Name + ' AS VARCHAR(MAX))) IS NOT NULL OR '
- WHEN 'ntext' THEN CHAR(10) + CHAR(9) + 'NULLIF(CAST(Source.' + @Column_Name + ' AS NVARCHAR(MAX)), CAST(Target.' + @Column_Name + ' AS NVARCHAR(MAX))) IS NOT NULL OR NULLIF(CAST(Target.' + @Column_Name + ' AS NVARCHAR(MAX)), CAST(Source.' + @Column_Name + ' AS NVARCHAR(MAX))) IS NOT NULL OR ' 
- ELSE CHAR(10) + CHAR(9) + 'NULLIF(Source.' + @Column_Name + ', Target.' + @Column_Name + ') IS NOT NULL OR NULLIF(Target.' + @Column_Name + ', Source.' + @Column_Name + ') IS NOT NULL OR '
+ WHEN 'text' THEN CHAR(10) + CHAR(9) + 'NULLIF(CAST([Source].' + @Column_Name + ' AS VARCHAR(MAX)), CAST([Target].' + @Column_Name + ' AS VARCHAR(MAX))) IS NOT NULL OR NULLIF(CAST([Target].' + @Column_Name + ' AS VARCHAR(MAX)), CAST([Source].' + @Column_Name + ' AS VARCHAR(MAX))) IS NOT NULL OR '
+ WHEN 'ntext' THEN CHAR(10) + CHAR(9) + 'NULLIF(CAST([Source].' + @Column_Name + ' AS NVARCHAR(MAX)), CAST([Target].' + @Column_Name + ' AS NVARCHAR(MAX))) IS NOT NULL OR NULLIF(CAST([Target].' + @Column_Name + ' AS NVARCHAR(MAX)), CAST([Source].' + @Column_Name + ' AS NVARCHAR(MAX))) IS NOT NULL OR ' 
+ ELSE 'NULLIF([Source].' + @Column_Name + ', [Target].' + @Column_Name + ') IS NOT NULL OR NULLIF([Target].' + @Column_Name + ', [Source].' + @Column_Name + ') IS NOT NULL OR ' + CHAR(10) + CHAR(9)
  END 
  END
 
@@ -432,7 +432,7 @@ IF LEN(@Column_List_For_Update) <> 0
 
 IF LEN(@Column_List_For_Check) <> 0
  BEGIN
- SET @Column_List_For_Check = LEFT(@Column_List_For_Check,len(@Column_List_For_Check) - 3)
+ SET @Column_List_For_Check = LEFT(@Column_List_For_Check,len(@Column_List_For_Check) - 6)
  END
 
 SET @Actual_Values = LEFT(@Actual_Values,len(@Actual_Values) - 6)
@@ -452,7 +452,7 @@ SET @PK_column_list = ''
 SET @PK_column_joins = ''
 
 SELECT @PK_column_list = @PK_column_list + '[' + c.COLUMN_NAME + '], '
-, @PK_column_joins = @PK_column_joins + 'Target.[' + c.COLUMN_NAME + '] = Source.[' + c.COLUMN_NAME + '] AND '
+, @PK_column_joins = @PK_column_joins + '[Target].[' + c.COLUMN_NAME + '] = [Source].[' + c.COLUMN_NAME + '] AND '
 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS pk ,
 INFORMATION_SCHEMA.KEY_COLUMN_USAGE c
 WHERE pk.TABLE_NAME = @table_name
@@ -477,7 +477,7 @@ SET @Actual_Values =
  'SELECT ' + 
  CASE WHEN @top IS NULL OR @top < 0 THEN '' ELSE ' TOP ' + LTRIM(STR(@top)) + ' ' END + 
  '''' + 
- ' '' + CASE WHEN ROW_NUMBER() OVER (ORDER BY ' + @PK_column_list + ') = 1 THEN '' '' ELSE '','' END + ''(''+ ' + @Actual_Values + '+'')''' + ' ' + 
+ ' '' + CASE WHEN ROW_NUMBER() OVER (ORDER BY ' + @PK_column_list + ') = 1 THEN ''         '' ELSE ''        ,'' END + ''(''+ ' + @Actual_Values + '+'')''' + ' ' + 
  COALESCE(@from,' FROM ' + @Source_Table_Qualified + ' (NOLOCK)')
 
  DECLARE @output VARCHAR(MAX) = ''
@@ -540,7 +540,7 @@ IF @disable_constraints = 1 AND (OBJECT_ID(@Source_Table_Qualified, 'U') IS NOT 
 
 
 --Output the start of the MERGE statement, qualifying with the schema name only if the caller explicitly specified it
-SET @output += @b + 'MERGE INTO ' + @Target_Table_For_Output + ' AS Target'
+SET @output += @b + 'MERGE INTO ' + @Target_Table_For_Output + ' AS [Target]'
 SET @output += @b + 'USING (VALUES'
 
 
@@ -555,7 +555,7 @@ BEGIN
 END
 
 --Output the columns to correspond with each of the values above--------------------
-SET @output += @b + ') AS Source (' + @Column_List + ')'
+SET @output += @b + '       ) AS [Source] (' + @Column_List + ')'
 
 
 --Output the join columns ----------------------------------------------------------
@@ -565,24 +565,27 @@ SET @output += @b + 'ON (' + @PK_column_joins + ')'
 --When matched, perform an UPDATE on any metadata columns only (ie. not on PK)------
 IF LEN(@Column_List_For_Update) <> 0
 BEGIN
- SET @output += @b + 'WHEN MATCHED ' + CASE WHEN @update_only_if_changed = 1 THEN 'AND (' + @Column_List_For_Check + ') ' ELSE '' END + 'THEN'
- SET @output += @b + ' UPDATE SET'
- SET @output += @b + '  ' + LTRIM(@Column_List_For_Update)
+ SET @output += @b + 'WHEN MATCHED ' + CASE WHEN @update_only_if_changed = 1 THEN 'AND (' + @Column_List_For_Check + ') ' ELSE '' END
+ SET @output += @b + 'THEN'
+ SET @output += @b + '    UPDATE SET'
+ SET @output += @b + '        ' + LTRIM(@Column_List_For_Update)
 END
 
 
 --When NOT matched by target, perform an INSERT------------------------------------
-SET @output += @b + 'WHEN NOT MATCHED BY TARGET THEN';
-SET @output += @b + ' INSERT(' + @Column_List + ')'
-SET @output += @b + ' VALUES(' + REPLACE(@Column_List, '[', 'Source.[') + ')'
+SET @output += @b + 'WHEN NOT MATCHED BY TARGET '
+SET @output += @b + 'THEN';
+SET @output += @b + '    INSERT(' + @Column_List + ')'
+SET @output += @b + '    VALUES(' + REPLACE(@Column_List, '[', '[Source].[') + ')'
 
 
 --When NOT matched by source, DELETE the row
 IF @delete_if_not_matched=1 BEGIN
- SET @output += @b + 'WHEN NOT MATCHED BY SOURCE THEN '
- SET @output += @b + ' DELETE'
+ SET @output += @b + 'WHEN NOT MATCHED BY SOURCE'
+ SET @output += @b + 'THEN';
+ SET @output += @b + '    DELETE'
 END;
-SET @output += @b + ';'
+SET @output += ';'
 SET @output += @b + @batch_separator
 
 --Display the number of affected rows to the user, or report if an error occurred---
